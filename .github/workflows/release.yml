@@ -60,7 +60,7 @@ jobs:
           version: ${{ steps.jerry-version.outputs.version }}
 
       - name: Build
-        run: jerry compile src/strings.jer src/grep.jer src/main.jer -o ${{ matrix.asset_name }}
+        run: jerry compile src/grep.jer src/main.jer -o ${{ matrix.asset_name }}
 
       - name: Smoke test
         run: printf 'apple\nbanana\n' | ./${{ matrix.asset_name }} ap

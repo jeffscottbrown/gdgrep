@@ -47,7 +47,7 @@ jobs:
           version: ${{ steps.jerry-version.outputs.version }}
 
       - name: Build
-        run: jerry compile src/strings.jer src/grep.jer src/main.jer -o gdgrep
+        run: jerry compile src/grep.jer src/main.jer -o gdgrep
 
       - name: Test — basic match
         run: printf 'apple\nbanana\napricot\n' | ./gdgrep ap
@@ -78,10 +78,10 @@ jobs:
 
       - name: Test — multiple files show label
         run: |
-          OUT=$(./gdgrep fn src/strings.jer src/grep.jer)
+          OUT=$(./gdgrep fn src/grep.jer src/main.jer)
           echo "$OUT"
-          echo "$OUT" | grep -q 'src/strings.jer:'
           echo "$OUT" | grep -q 'src/grep.jer:'
+          echo "$OUT" | grep -q 'src/main.jer:'
 
       - name: Test — single file no label
         run: |
