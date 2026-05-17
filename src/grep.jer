@@ -1,0 +1,62 @@
+include "github.com/jeffscottbrown/jerry-string"
+
+// grep_lines scans content line-by-line and prints lines that contain pattern.
+//
+// Parameters:
+//   content      — full file (or stdin) text
+//   pattern      — the search string (already lowercased when ignore_case is true)
+//   label        — filename prefix printed before each match when show_label is true
+//   show_label   — prepend "label:" to each matching line
+//   show_num     — prepend the 1-based line number to each matching line
+//   ignore_case  — fold case before comparing
+//
+// Returns the number of matching lines.
+fn grep_lines(
+    content: string,
+    pattern: string,
+    label: string,
+    show_label: bool,
+    show_num: bool,
+    ignore_case: bool
+): int {
+    let matched: int = 0;
+    let start: int = 0;
+    let total: int = len(content);
+    let linenum: int = 1;
+
+    let search_pattern: string = pattern;
+    if (ignore_case) {
+        search_pattern = lower_str(pattern);
+    }
+
+    while (start <= total) {
+        // Locate the end of the current line (newline = char code 10).
+        let end: int = start;
+        while (end < total && char_at(content, end) != 10) {
+            end = end + 1;
+        }
+
+        let line: string = string_slice(content, start, end);
+
+        let search_line: string = line;
+        if (ignore_case) {
+            search_line = lower_str(line);
+        }
+
+        if (contains(search_line, search_pattern)) {
+            if (show_label) {
+                write(label + ":");
+            }
+            if (show_num) {
+                write(int_to_string(linenum) + ":");
+            }
+            print(line);
+            matched = matched + 1;
+        }
+
+        start = end + 1;
+        linenum = linenum + 1;
+    }
+
+    return matched;
+}

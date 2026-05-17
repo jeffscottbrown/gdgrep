@@ -1,0 +1,123 @@
+name: Release
+
+# Triggers on v*.*.* tag pushes.
+# Every other push to main is handled by ci.yml.
+
+on:
+  push:
+    tags: ["v*.*.*"]
+
+permissions:
+  contents: write   # required to create GitHub Releases
+
+jobs:
+  # ── Build one native binary per platform ─────────────────────────────────
+  build:
+    name: Build (${{ matrix.name }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name:       linux-x86_64
+            os:         ubuntu-latest
+            asset_name: gdgrep-linux-x86_64
+
+          - name:       macos-x86_64
+            os:         macos-15        # GitHub's Intel Mac runner
+            asset_name: gdgrep-macos-x86_64
+
+          - name:       macos-arm64
+            os:         macos-latest   # GitHub's Apple Silicon runner
+            asset_name: gdgrep-macos-arm64
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install clang (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y clang
+
+      - name: Setup Jerry
+        uses: jeffscottbrown/jerry-lang/.github/actions/setup-jerry@main
+
+      - name: Build
+        run: jerry compile src/strings.jer src/grep.jer src/main.jer -o ${{ matrix.asset_name }}
+
+      - name: Smoke test
+        run: printf 'apple\nbanana\n' | ./${{ matrix.asset_name }} ap
+
+      - name: Create archive
+        run: tar -czf ${{ matrix.asset_name }}.tar.gz ${{ matrix.asset_name }}
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.asset_name }}
+          path: ${{ matrix.asset_name }}.tar.gz
+          retention-days: 1
+
+  # ── Publish release and update Homebrew tap ───────────────────────────────
+  release:
+    name: Create GitHub Release
+    needs: build
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download all build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: dist/
+          merge-multiple: true
+
+      - name: Generate checksums
+        working-directory: dist
+        run: sha256sum *.tar.gz > checksums.txt
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: "gdgrep ${{ github.ref_name }}"
+          draft: false
+          prerelease: ${{ contains(github.ref_name, '-') }}
+          generate_release_notes: true
+          files: |
+            dist/*.tar.gz
+            dist/checksums.txt
+
+      - name: Update Homebrew tap
+        # Skip pre-releases (tags containing a hyphen, e.g. v1.0.0-rc1).
+        if: ${{ !contains(github.ref_name, '-') }}
+        env:
+          HOMEBREW_TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+        run: |
+          TAG="${{ github.ref_name }}"
+
+          SHA_MACOS_ARM64=$(grep  'gdgrep-macos-arm64.tar.gz'  dist/checksums.txt | awk '{print $1}')
+          SHA_MACOS_X86_64=$(grep 'gdgrep-macos-x86_64.tar.gz' dist/checksums.txt | awk '{print $1}')
+          SHA_LINUX_X86_64=$(grep 'gdgrep-linux-x86_64.tar.gz' dist/checksums.txt | awk '{print $1}')
+
+          git clone \
+            "https://x-access-token:${HOMEBREW_TAP_TOKEN}@github.com/jeffscottbrown/homebrew-gdgrep.git" \
+            tap
+
+          # Copy the formula template from this repo and fill in all tokens.
+          mkdir -p tap/Formula
+          cp homebrew/gdgrep.rb tap/Formula/gdgrep.rb
+
+          FORMULA="tap/Formula/gdgrep.rb"
+          sed -i "s|VERSION_PLACEHOLDER|${TAG}|g"         "$FORMULA"
+          sed -i "s|SHA256_MACOS_ARM64|${SHA_MACOS_ARM64}|"   "$FORMULA"
+          sed -i "s|SHA256_MACOS_X86_64|${SHA_MACOS_X86_64}|" "$FORMULA"
+          sed -i "s|SHA256_LINUX_X86_64|${SHA_LINUX_X86_64}|" "$FORMULA"
+
+          cd tap
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add Formula/gdgrep.rb
+          git commit -m "chore: update gdgrep to ${TAG}"
+          git push
