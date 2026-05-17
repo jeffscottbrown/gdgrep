@@ -40,8 +40,24 @@ jobs:
           sudo apt-get update -qq
           sudo apt-get install -y clang
 
+      - name: Resolve Jerry version
+        id: jerry-version
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          VERSION=$(curl -fsSL \
+            -H "Accept: application/vnd.github+json" \
+            -H "Authorization: Bearer $GH_TOKEN" \
+            https://api.github.com/repos/jeffscottbrown/jerry-lang/releases/latest \
+            | grep '"tag_name"' \
+            | sed 's/.*"tag_name": *"\([^"]*\)".*/\1/')
+          [ -n "$VERSION" ] || { echo "::error::Could not resolve latest Jerry version"; exit 1; }
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
       - name: Setup Jerry
         uses: jeffscottbrown/jerry-lang/.github/actions/setup-jerry@main
+        with:
+          version: ${{ steps.jerry-version.outputs.version }}
 
       - name: Build
         run: jerry compile src/strings.jer src/grep.jer src/main.jer -o ${{ matrix.asset_name }}
