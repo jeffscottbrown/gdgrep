@@ -35,48 +35,8 @@ jobs:
       - name: Jerry version
         run: jerry --version
 
-      - name: Unit tests
-        run: cd src && jerry test grep.jer grep_test.jer
+      - name: Test
+        run: make test
 
       - name: Build
-        run: jerry compile src/grep.jer src/main.jer -o gdgrep
-
-      - name: Test — basic match
-        run: printf 'apple\nbanana\napricot\n' | ./gdgrep ap
-
-      - name: Test — no match exits 1
-        run: |
-          printf 'apple\nbanana\n' | ./gdgrep mango && exit 1 || true
-
-      - name: Test — line numbers (-n)
-        run: |
-          OUT=$(printf 'foo\nbar\nfoo\n' | ./gdgrep -n foo)
-          echo "$OUT"
-          echo "$OUT" | grep -q '^1:foo'
-          echo "$OUT" | grep -q '^3:foo'
-
-      - name: Test — ignore case (-i)
-        run: |
-          OUT=$(printf 'Hello\nworld\n' | ./gdgrep -i hello)
-          echo "$OUT"
-          echo "$OUT" | grep -q 'Hello'
-
-      - name: Test — combined flags (-i -n)
-        run: |
-          OUT=$(printf 'Apple\nbanana\nAPPLE\n' | ./gdgrep -i -n apple)
-          echo "$OUT"
-          echo "$OUT" | grep -q '^1:Apple'
-          echo "$OUT" | grep -q '^3:APPLE'
-
-      - name: Test — multiple files show label
-        run: |
-          OUT=$(./gdgrep fn src/grep.jer src/main.jer)
-          echo "$OUT"
-          echo "$OUT" | grep -q 'src/grep.jer:'
-          echo "$OUT" | grep -q 'src/main.jer:'
-
-      - name: Test — single file no label
-        run: |
-          OUT=$(./gdgrep fn src/main.jer)
-          echo "$OUT"
-          echo "$OUT" | grep -vq 'src/main.jer:'
+        run: make build
