@@ -36,7 +36,15 @@ class Gdgrep < Formula
   end
 
   def install
-    bin.install "gdgrep"
+    if OS.mac?
+      if Hardware::CPU.arm?
+        bin.install "gdgrep-macos-arm64" => "gdgrep"
+      else
+        bin.install "gdgrep-macos-x86_64" => "gdgrep"
+      end
+    elsif OS.linux?
+      bin.install "gdgrep-linux-x86_64" => "gdgrep"
+    end
   end
 
   test do
