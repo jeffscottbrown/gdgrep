@@ -8,7 +8,7 @@ on:
     tags: ["v*.*.*"]
 
 permissions:
-  contents: write   # required to create GitHub Releases
+  contents: write # required to create GitHub Releases
 
 jobs:
   # ── Build one native binary per platform ─────────────────────────────────
@@ -19,17 +19,17 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - name:       linux-x86_64
-            os:         ubuntu-latest
+          - name: linux-x86_64
+            os: ubuntu-latest
             asset_name: gdgrep-linux-x86_64
 
-          - name:       macos-x86_64
-            os:         macos-latest
+          - name: macos-x86_64
+            os: macos-latest
             asset_name: gdgrep-macos-x86_64
             jerry_target: x86_64-apple-darwin
 
-          - name:       macos-arm64
-            os:         macos-latest
+          - name: macos-arm64
+            os: macos-latest
             asset_name: gdgrep-macos-arm64
             jerry_target: ""
 
@@ -42,24 +42,10 @@ jobs:
           sudo apt-get update -qq
           sudo apt-get install -y clang
 
-      - name: Resolve Jerry version
-        id: jerry-version
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          VERSION=$(curl -fsSL \
-            -H "Accept: application/vnd.github+json" \
-            -H "Authorization: Bearer $GH_TOKEN" \
-            https://api.github.com/repos/jeffscottbrown/jerry-lang/releases/latest \
-            | grep '"tag_name"' \
-            | sed 's/.*"tag_name": *"\([^"]*\)".*/\1/')
-          [ -n "$VERSION" ] || { echo "::error::Could not resolve latest Jerry version"; exit 1; }
-          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
-
       - name: Setup Jerry
-        uses: jeffscottbrown/jerry-lang/.github/actions/setup-jerry@main
+        uses: jeffscottbrown/jerry-lang/.github/actions/setup-jerry@v0.2.2
         with:
-          version: ${{ steps.jerry-version.outputs.version }}
+          version: v0.2.2
 
       - name: Build
         run: |

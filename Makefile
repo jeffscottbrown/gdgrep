@@ -1,8 +1,8 @@
 BINARY := gdgrep
-SRCS   := src/strings.jer src/grep.jer src/main.jer
+SRCS   := src/grep.jer src/main.jer
 PREFIX ?= /usr/local
 
-.PHONY: all build run clean install uninstall help
+.PHONY: all build run test clean install uninstall help
 
 all: build
 
@@ -11,6 +11,10 @@ build: $(BINARY)
 
 $(BINARY): $(SRCS)
 	jerry compile $(SRCS) -o $(BINARY)
+
+## test       run unit tests with Jerry's built-in test runner
+test:
+	jerry test src/
 
 ## run        run without a persistent binary  (usage: make run ARGS="-n fn src/main.jer")
 run: $(SRCS)

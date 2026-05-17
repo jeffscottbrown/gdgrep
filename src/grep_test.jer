@@ -1,0 +1,118 @@
+include @testing
+
+// Tests for grep_lines(content, pattern, label, show_label, show_num, ignore_case) -> int
+// These tests verify the match count returned; output formatting flags (show_label,
+// show_num) affect stdout only and do not change the returned count.
+
+// ── Basic matching ────────────────────────────────────────────────────────────
+
+fn test_no_match_returns_zero() {
+    let result: int = grep_lines("apple\nbanana\n", "mango", "", false, false, false);
+    assert_eq_int(result, 0, "no match should return 0");
+}
+
+fn test_single_match_returns_one() {
+    let result: int = grep_lines("apple\nbanana\n", "apple", "", false, false, false);
+    assert_eq_int(result, 1, "one matching line should return 1");
+}
+
+fn test_multiple_matches_returns_correct_count() {
+    let result: int = grep_lines("foo\nbar\nfoo\n", "foo", "", false, false, false);
+    assert_eq_int(result, 2, "two matching lines should return 2");
+}
+
+fn test_all_lines_match() {
+    let result: int = grep_lines("foo\nfoo\nfoo\n", "foo", "", false, false, false);
+    assert_eq_int(result, 3, "all three lines matching should return 3");
+}
+
+fn test_pattern_is_substring() {
+    let result: int = grep_lines("apple\nbanana\napricot\n", "ap", "", false, false, false);
+    assert_eq_int(result, 2, "substring 'ap' should match 'apple' and 'apricot'");
+}
+
+fn test_pattern_at_start_of_line() {
+    let result: int = grep_lines("foobar\nbaz\n", "foo", "", false, false, false);
+    assert_eq_int(result, 1, "pattern at start of line should match");
+}
+
+fn test_pattern_at_end_of_line() {
+    let result: int = grep_lines("foo bar\nbaz\n", "bar", "", false, false, false);
+    assert_eq_int(result, 1, "pattern at end of line should match");
+}
+
+fn test_pattern_in_middle_of_line() {
+    let result: int = grep_lines("xfoox\nbar\n", "foo", "", false, false, false);
+    assert_eq_int(result, 1, "pattern in middle of line should match");
+}
+
+// ── Edge cases ────────────────────────────────────────────────────────────────
+
+fn test_empty_content_returns_zero() {
+    let result: int = grep_lines("", "foo", "", false, false, false);
+    assert_eq_int(result, 0, "empty content should return 0");
+}
+
+fn test_single_line_no_trailing_newline() {
+    let result: int = grep_lines("hello world", "world", "", false, false, false);
+    assert_eq_int(result, 1, "single line without trailing newline should match");
+}
+
+fn test_single_line_no_trailing_newline_no_match() {
+    let result: int = grep_lines("hello world", "mango", "", false, false, false);
+    assert_eq_int(result, 0, "single line without trailing newline, no match, should return 0");
+}
+
+fn test_only_newlines() {
+    let result: int = grep_lines("\n\n\n", "foo", "", false, false, false);
+    assert_eq_int(result, 0, "content with only newlines should return 0");
+}
+
+// ── Case sensitivity ──────────────────────────────────────────────────────────
+
+fn test_case_sensitive_mismatch_returns_zero() {
+    let result: int = grep_lines("Hello\nworld\n", "hello", "", false, false, false);
+    assert_eq_int(result, 0, "case-sensitive: 'hello' should not match 'Hello'");
+}
+
+fn test_case_sensitive_exact_match() {
+    let result: int = grep_lines("Hello\nworld\n", "Hello", "", false, false, false);
+    assert_eq_int(result, 1, "case-sensitive: 'Hello' should match 'Hello'");
+}
+
+fn test_case_insensitive_lowercase_pattern_matches_titlecase() {
+    let result: int = grep_lines("Hello\nworld\n", "hello", "", false, false, true);
+    assert_eq_int(result, 1, "case-insensitive: 'hello' should match 'Hello'");
+}
+
+fn test_case_insensitive_uppercase_pattern_matches_lowercase() {
+    let result: int = grep_lines("apple\nbanana\n", "APPLE", "", false, false, true);
+    assert_eq_int(result, 1, "case-insensitive: 'APPLE' should match 'apple'");
+}
+
+fn test_case_insensitive_mixed_case_content() {
+    let result: int = grep_lines("Apple\nbanana\nAPPLE\n", "apple", "", false, false, true);
+    assert_eq_int(result, 2, "case-insensitive: should match both 'Apple' and 'APPLE'");
+}
+
+fn test_case_insensitive_all_caps_content_and_pattern() {
+    let result: int = grep_lines("FOO\nBAR\nFOO\n", "FOO", "", false, false, true);
+    assert_eq_int(result, 2, "case-insensitive all-caps: should match both FOO lines");
+}
+
+// ── Output flags do not affect match count ────────────────────────────────────
+
+fn test_show_label_does_not_affect_count() {
+    let result: int = grep_lines("foo\nbar\nfoo\n", "foo", "file.txt", true, false, false);
+    assert_eq_int(result, 2, "show_label should not change match count");
+}
+
+fn test_show_num_does_not_affect_count() {
+    let result: int = grep_lines("foo\nbar\nfoo\n", "foo", "", false, true, false);
+    assert_eq_int(result, 2, "show_num should not change match count");
+}
+
+fn test_all_flags_do_not_affect_count() {
+    let result: int = grep_lines("Apple\nbanana\nAPPLE\n", "apple", "myfile", true, true, true);
+    assert_eq_int(result, 2, "all flags combined should not change match count");
+}
