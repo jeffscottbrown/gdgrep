@@ -24,12 +24,14 @@ jobs:
             asset_name: gdgrep-linux-x86_64
 
           - name:       macos-x86_64
-            os:         macos-15        # GitHub's Intel Mac runner
+            os:         macos-latest
             asset_name: gdgrep-macos-x86_64
+            jerry_target: x86_64-apple-darwin
 
           - name:       macos-arm64
-            os:         macos-latest   # GitHub's Apple Silicon runner
+            os:         macos-latest
             asset_name: gdgrep-macos-arm64
+            jerry_target: ""
 
     steps:
       - uses: actions/checkout@v4
@@ -60,9 +62,15 @@ jobs:
           version: ${{ steps.jerry-version.outputs.version }}
 
       - name: Build
-        run: jerry compile src/grep.jer src/main.jer -o ${{ matrix.asset_name }}
+        run: |
+          TARGET_FLAG=""
+          if [ -n "${{ matrix.jerry_target }}" ]; then
+            TARGET_FLAG="--target ${{ matrix.jerry_target }}"
+          fi
+          jerry compile src/grep.jer src/main.jer -o ${{ matrix.asset_name }} $TARGET_FLAG
 
       - name: Smoke test
+        if: matrix.jerry_target == ''
         run: printf 'apple\nbanana\n' | ./${{ matrix.asset_name }} ap
 
       - name: Create archive
