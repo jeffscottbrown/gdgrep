@@ -8,7 +8,7 @@ VERSION := $(shell git describe --tags --always 2>/dev/null || echo "dev")
 all: build
 
 src/version.jer:
-	printf 'let VERSION: string = "%s";\n' "$(VERSION)" > src/version.jer
+	@printf 'let VERSION: string = "%s";\n' "$(VERSION)" > src/version.jer
 
 ## build     compile the gdgrep binary
 build: src/version.jer $(BINARY)
