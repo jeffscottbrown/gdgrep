@@ -15,7 +15,7 @@ class Gdgrep < Formula
   desc "Fast, friendly grep written in the Jerry language"
   homepage "https://github.com/jeffscottbrown/gdgrep"
   version "VERSION_PLACEHOLDER"
-  license "MIT"
+  license "Apache-2.0"
 
   on_macos do
     on_arm do

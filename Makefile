@@ -1,13 +1,17 @@
-BINARY := gdgrep
-SRCS   := src/grep.jer src/main.jer
-PREFIX ?= /usr/local
+BINARY  := gdgrep
+SRCS    := src/version.jer src/grep.jer src/main.jer
+PREFIX  ?= /usr/local
+VERSION := $(shell git describe --tags --always 2>/dev/null || echo "dev")
 
 .PHONY: all build run test clean install uninstall help
 
 all: build
 
+src/version.jer:
+	printf 'let VERSION: string = "%s";\n' "$(VERSION)" > src/version.jer
+
 ## build     compile the gdgrep binary
-build: $(BINARY)
+build: src/version.jer $(BINARY)
 
 $(BINARY): $(SRCS)
 	jerry compile $(SRCS) -o $(BINARY)
@@ -31,7 +35,7 @@ uninstall:
 
 ## clean      remove build artifacts
 clean:
-	rm -f $(BINARY)
+	rm -f $(BINARY) src/version.jer
 
 ## help       show this help
 help:
