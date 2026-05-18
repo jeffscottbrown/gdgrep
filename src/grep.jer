@@ -1,4 +1,4 @@
-include "github.com/jeffscottbrown/jerry-string"
+include @string
 
 // grep_lines scans content line-by-line and prints lines that contain pattern.
 //
