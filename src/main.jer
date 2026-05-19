@@ -1,11 +1,12 @@
 // gdgrep — a grep implementation written in Jerry.
 //
-// Usage: gdgrep [-i] [-n] [-v] <pattern> [file ...]
+// Usage: gdgrep [-i] [-n] [-v] [-V] <pattern> [file ...]
 //
 // Flags (must appear before the pattern):
 //   -i   case-insensitive matching
 //   -n   prefix each matching line with its 1-based line number
-//   -v   print version and exit
+//   -v   invert match: print lines that do NOT contain the pattern
+//   -V   print version and exit
 //
 // With no file arguments gdgrep reads from standard input.
 // Exits with status 1 when no lines match.
@@ -17,6 +18,7 @@ fn main() {
     // ── Parse flags ────────────────────────────────────────────────────────
     let show_num: bool = false;
     let ignore_case: bool = false;
+    let invert: bool = false;
     let argpos: int = 0;
 
     while (argpos < argc) {
@@ -28,6 +30,9 @@ fn main() {
             ignore_case = true;
             argpos = argpos + 1;
         } else if (arg == "-v") {
+            invert = true;
+            argpos = argpos + 1;
+        } else if (arg == "-V") {
             print("gdgrep " + VERSION);
             exit(0);
         } else {
@@ -36,7 +41,7 @@ fn main() {
     }
 
     if (argpos >= argc) {
-        print_err("usage: gdgrep [-i] [-n] [-v] <pattern> [file ...]");
+        print_err("usage: gdgrep [-i] [-n] [-v] [-V] <pattern> [file ...]");
         exit(1);
     }
 
@@ -48,7 +53,7 @@ fn main() {
     if (file_start >= argc) {
         // No files given — read stdin.
         let content: string = read_stdin();
-        matched = grep_lines(content, pattern, "(stdin)", false, show_num, ignore_case);
+        matched = grep_lines(content, pattern, "(stdin)", false, show_num, ignore_case, invert);
     } else {
         // One or more files.  Show the filename prefix only when there are
         // multiple files (mirrors standard grep behaviour).
@@ -57,7 +62,7 @@ fn main() {
         while (i < argc) {
             let path: string = argv[i];
             let content: string = read_file(path);
-            matched = matched + grep_lines(content, pattern, path, show_label, show_num, ignore_case);
+            matched = matched + grep_lines(content, pattern, path, show_label, show_num, ignore_case, invert);
             i = i + 1;
         }
     }

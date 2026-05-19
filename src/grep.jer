@@ -9,6 +9,7 @@ include @string
 //   show_label   — prepend "label:" to each matching line
 //   show_num     — prepend the 1-based line number to each matching line
 //   ignore_case  — fold case before comparing
+//   invert       — print lines that do NOT match (like grep -v)
 //
 // Returns the number of matching lines.
 fn grep_lines(
@@ -17,7 +18,8 @@ fn grep_lines(
     label: string,
     show_label: bool,
     show_num: bool,
-    ignore_case: bool
+    ignore_case: bool,
+    invert: bool
 ): int {
     let matched: int = 0;
     let start: int = 0;
@@ -43,7 +45,10 @@ fn grep_lines(
             search_line = lower_str(line);
         }
 
-        if (contains(search_line, search_pattern)) {
+        let raw_match: bool = contains(search_line, search_pattern);
+        let line_matches: bool = raw_match != invert;
+
+        if (line_matches) {
             if (show_label) {
                 write(label + ":");
             }
