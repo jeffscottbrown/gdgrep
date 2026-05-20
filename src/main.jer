@@ -1,14 +1,38 @@
 // gdgrep — a grep implementation written in Jerry.
 //
-// Usage: gdgrep [-i] [-n] [-v] <pattern> [file ...]
+// Usage: gdgrep [--color] [-A N] [-B N] [-C N] [-c] [-h] [-H] [-i] [-l] [-L] [-m N] [-n] [-q] [-v] [-V] <pattern> [file ...]
 //
 // Flags (must appear before the pattern):
-//   -i   case-insensitive matching
-//   -n   prefix each matching line with its 1-based line number
-//   -v   print version and exit
+//   --color  highlight the matched portion in bold red
+//   -A N     print N lines of trailing context after each match
+//   -B N     print N lines of leading context before each match
+//   -C N     print N lines of context before and after each match
+//   -c       print only a count of matching lines per file
+//   -h       suppress the filename prefix on output lines
+//   -H       always print the filename prefix on output lines
+//   -i       case-insensitive matching
+//   -l       print only the names of files with at least one match
+//   -L       print only the names of files with no matches
+//   -m N     stop after N matching lines
+//   -n       prefix each matching line with its 1-based line number
+//   -q       quiet: suppress output, exit 0 if any match found
+//   -v       invert match: print lines that do NOT contain the pattern
+//   -V       print version and exit
 //
 // With no file arguments gdgrep reads from standard input.
 // Exits with status 1 when no lines match.
+
+// parse_int converts a decimal string to an integer (positive values only).
+fn parse_int(s: string): int {
+    let result: int = 0;
+    let i: int = 0;
+    let n: int = len(s);
+    while (i < n) {
+        result = result * 10 + (char_at(s, i) - 48);
+        i = i + 1;
+    }
+    return result;
+}
 
 fn main() {
     let argv: string[] = args();
@@ -17,17 +41,78 @@ fn main() {
     // ── Parse flags ────────────────────────────────────────────────────────
     let show_num: bool = false;
     let ignore_case: bool = false;
+    let invert: bool = false;
+    let quiet: bool = false;
+    let count_only: bool = false;
+    let list_files: bool = false;
+    let list_nonmatching: bool = false;
+    let force_label: bool = false;
+    let force_no_label: bool = false;
+    let max_matches: int = 0;
+    let color: bool = false;
+    let before_ctx: int = 0;
+    let after_ctx: int = 0;
     let argpos: int = 0;
 
     while (argpos < argc) {
         let arg: string = argv[argpos];
-        if (arg == "-n") {
+        if (arg == "--color") {
+            color = true;
+            argpos = argpos + 1;
+        } else if (arg == "-c") {
+            count_only = true;
+            argpos = argpos + 1;
+        } else if (arg == "-h") {
+            force_no_label = true;
+            argpos = argpos + 1;
+        } else if (arg == "-H") {
+            force_label = true;
+            argpos = argpos + 1;
+        } else if (arg == "-l") {
+            list_files = true;
+            argpos = argpos + 1;
+        } else if (arg == "-L") {
+            list_nonmatching = true;
+            argpos = argpos + 1;
+        } else if (arg == "-n") {
             show_num = true;
             argpos = argpos + 1;
         } else if (arg == "-i") {
             ignore_case = true;
             argpos = argpos + 1;
+        } else if (arg == "-A") {
+            argpos = argpos + 1;
+            if (argpos < argc) {
+                after_ctx = parse_int(argv[argpos]);
+                argpos = argpos + 1;
+            }
+        } else if (arg == "-B") {
+            argpos = argpos + 1;
+            if (argpos < argc) {
+                before_ctx = parse_int(argv[argpos]);
+                argpos = argpos + 1;
+            }
+        } else if (arg == "-C") {
+            argpos = argpos + 1;
+            if (argpos < argc) {
+                let ctx: int = parse_int(argv[argpos]);
+                before_ctx = ctx;
+                after_ctx = ctx;
+                argpos = argpos + 1;
+            }
+        } else if (arg == "-m") {
+            argpos = argpos + 1;
+            if (argpos < argc) {
+                max_matches = parse_int(argv[argpos]);
+                argpos = argpos + 1;
+            }
+        } else if (arg == "-q") {
+            quiet = true;
+            argpos = argpos + 1;
         } else if (arg == "-v") {
+            invert = true;
+            argpos = argpos + 1;
+        } else if (arg == "-V") {
             print("gdgrep " + VERSION);
             exit(0);
         } else {
@@ -36,7 +121,7 @@ fn main() {
     }
 
     if (argpos >= argc) {
-        print_err("usage: gdgrep [-i] [-n] [-v] <pattern> [file ...]");
+        print_err("usage: gdgrep [--color] [-A N] [-B N] [-C N] [-c] [-h] [-H] [-i] [-l] [-L] [-m N] [-n] [-q] [-v] [-V] <pattern> [file ...]");
         exit(1);
     }
 
@@ -45,19 +130,47 @@ fn main() {
     let file_start: int = argpos + 1;
     let matched: int = 0;
 
+    // -c, -l, and -L all suppress line output; the caller handles what to print.
+    let effective_quiet: bool = quiet || count_only || list_files || list_nonmatching;
+
     if (file_start >= argc) {
         // No files given — read stdin.
         let content: string = read_stdin();
-        matched = grep_lines(content, pattern, "(stdin)", false, show_num, ignore_case);
+        let file_matched: int = grep_lines(content, pattern, "(stdin)", false, show_num, ignore_case, invert, effective_quiet, max_matches, color, before_ctx, after_ctx);
+        matched = file_matched;
+        if (count_only) {
+            print(int_to_string(file_matched));
+        } else if (list_files && file_matched > 0) {
+            print("(stdin)");
+        } else if (list_nonmatching && file_matched == 0) {
+            print("(stdin)");
+        }
     } else {
-        // One or more files.  Show the filename prefix only when there are
-        // multiple files (mirrors standard grep behaviour).
+        // Auto-show label when multiple files; -H/-h can override.
         let show_label: bool = file_start < argc - 1;
+        if (force_label) {
+            show_label = true;
+        }
+        if (force_no_label) {
+            show_label = false;
+        }
         let i: int = file_start;
         while (i < argc) {
             let path: string = argv[i];
             let content: string = read_file(path);
-            matched = matched + grep_lines(content, pattern, path, show_label, show_num, ignore_case);
+            let file_matched: int = grep_lines(content, pattern, path, show_label, show_num, ignore_case, invert, effective_quiet, max_matches, color, before_ctx, after_ctx);
+            matched = matched + file_matched;
+            if (count_only) {
+                if (show_label) {
+                    print(path + ":" + int_to_string(file_matched));
+                } else {
+                    print(int_to_string(file_matched));
+                }
+            } else if (list_files && file_matched > 0) {
+                print(path);
+            } else if (list_nonmatching && file_matched == 0) {
+                print(path);
+            }
             i = i + 1;
         }
     }

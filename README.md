@@ -4,19 +4,13 @@
 [![Release](https://github.com/jeffscottbrown/gdgrep/actions/workflows/release.yml/badge.svg)](https://github.com/jeffscottbrown/gdgrep/actions/workflows/release.yml)
 [![Latest Release](https://img.shields.io/github/v/release/jeffscottbrown/gdgrep)](https://github.com/jeffscottbrown/gdgrep/releases/latest)
 
-A fast, friendly grep written in [Jerry](https://github.com/jeffscottbrown/jerry-lang) — a statically-typed, JavaScript-style language that compiles to native binaries via LLVM IR.
+A grep tool for searching files and standard input.
 
 ```sh
-gdgrep [-i] [-n] <pattern> [file ...]
+gdgrep [flags] <pattern> [file ...]
 ```
 
-## Features
-
-- Literal string search across files or stdin
-- `-i` — case-insensitive matching
-- `-n` — prefix each matching line with its 1-based line number
-- Multi-file label output (`filename:line`) when more than one file is given
-- Exits with status 1 when no lines match, compatible with shell pipelines
+gdgrep is a proof of concept project implemented in the experimental [Jerry](https://github.com/jeffscottbrown/jerry-lang) language.
 
 ## Installation
 
@@ -38,7 +32,7 @@ curl -fsSL https://github.com/jeffscottbrown/gdgrep/releases/latest/download/gdg
 sudo mv gdgrep-macos-arm64 /usr/local/bin/gdgrep
 ```
 
-Verify the download against `checksums.txt` (also on the release page):
+Verify the download:
 
 ```sh
 sha256sum --check --ignore-missing checksums.txt
@@ -58,18 +52,33 @@ make install          # installs to /usr/local/bin by default
 ## Usage
 
 ```
-gdgrep [-i] [-n] <pattern> [file ...]
+gdgrep [--color] [-A N] [-B N] [-C N] [-c] [-h] [-H] [-i] [-l] [-L] [-m N] [-n] [-q] [-v] [-V] <pattern> [file ...]
 ```
+
+Flags must appear before the pattern and may be given in any order.
+
+When no files are given, `gdgrep` reads from standard input.
+Exits with status 1 when no lines match, compatible with shell pipelines.
+
+### Flags
 
 | Flag | Description |
 |------|-------------|
-| `-i` | Case-insensitive matching (ASCII fold) |
-| `-n` | Prefix each matching line with its line number |
-
-Flags must appear before the pattern.  They may be given in any order or
-combined as separate arguments (e.g. `-i -n` or `-n -i`).
-
-When no files are given, `gdgrep` reads from standard input.
+| `--color` | Highlight the matched portion in bold red |
+| `-A N` | Print N lines of trailing context after each match |
+| `-B N` | Print N lines of leading context before each match |
+| `-C N` | Print N lines of context before and after each match |
+| `-c` | Print only a count of matching lines per file |
+| `-h` | Suppress the filename prefix on output lines |
+| `-H` | Always print the filename prefix on output lines |
+| `-i` | Case-insensitive matching |
+| `-l` | Print only the names of files with at least one match |
+| `-L` | Print only the names of files with no matches |
+| `-m N` | Stop after N matching lines |
+| `-n` | Prefix each matching line with its 1-based line number |
+| `-q` | Quiet: suppress output, exit 0 if any match found |
+| `-v` | Invert match: print lines that do NOT contain the pattern |
+| `-V` | Print version and exit |
 
 ## Examples
 
@@ -77,62 +86,35 @@ When no files are given, `gdgrep` reads from standard input.
 # Basic search
 gdgrep error app.log
 
-# Case-insensitive
-gdgrep -i error app.log
+# Case-insensitive with line numbers
+gdgrep -i -n error app.log
 
-# Show line numbers
-gdgrep -n TODO src/main.jer
+# Highlight matches in color
+gdgrep --color TODO src/main.jer
 
-# Combined flags, multiple files
-gdgrep -i -n fn src/strings.jer src/grep.jer src/main.jer
+# Show 2 lines of context around each match
+gdgrep -C 2 panic server.log
+
+# Count matches per file
+gdgrep -c error *.log
+
+# List only files that contain a match
+gdgrep -l TODO src/*.jer
+
+# Invert: print lines that do NOT match
+gdgrep -v DEBUG app.log
+
+# Stop after the first 5 matches
+gdgrep -m 5 error app.log
 
 # Pipeline
 cat access.log | gdgrep 404
 ```
 
-## Project layout
-
-```
-gdgrep/
-├── src/
-│   ├── strings.jer     # to_lower, contains — pure string utilities
-│   ├── grep.jer        # grep_lines — core search logic
-│   └── main.jer        # entry point: flag parsing, dispatch
-├── homebrew/
-│   └── gdgrep.rb       # Homebrew formula template (tokens filled by CI)
-├── .github/
-│   └── workflows/
-│       ├── ci.yml      # build + test on every push / PR
-│       └── release.yml # publish binaries + update tap on v*.*.* tags
-├── Makefile
-└── README.md
-```
-
-Source files are compiled together in a single `jerry compile` invocation.
-Functions defined in any `.jer` file are visible to all other files in the
-same build — no explicit imports between project files are needed.
-
-## Homebrew tap setup
-
-The Homebrew formula lives in a separate
-[jeffscottbrown/homebrew-gdgrep](https://github.com/jeffscottbrown/homebrew-gdgrep)
-repository.  On every stable release the CI workflow:
-
-1. Copies `homebrew/gdgrep.rb` (the template) into the tap repo.
-2. Replaces `VERSION_PLACEHOLDER` and `SHA256_*` tokens with the tag and
-   the SHA256 of each platform archive.
-3. Commits and pushes to `homebrew-gdgrep`.
-
-To wire this up for the first time:
-
-1. Create `https://github.com/jeffscottbrown/homebrew-gdgrep` with a
-   `Formula/` directory containing `gdgrep.rb` copied from `homebrew/gdgrep.rb`.
-2. Create a fine-grained GitHub PAT scoped to **homebrew-gdgrep** with
-   **Contents: Read and Write**.
-3. Add the PAT as secret `HOMEBREW_TAP_TOKEN` in the **gdgrep** repo
-   (Settings → Secrets and variables → Actions).
-4. Push a `v*.*.*` tag to trigger the first release.
-
 ## License
 
 Apache 2
+
+---
+
+For information on building, testing, and contributing to gdgrep, see [CONTRIBUTING.md](CONTRIBUTING.md).
