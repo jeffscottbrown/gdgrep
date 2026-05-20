@@ -10,6 +10,8 @@ A grep tool for searching files and standard input.
 gdgrep [flags] <pattern> [file ...]
 ```
 
+gdgrep is a proof of concept project implemented in the experimental [Jerry](https://github.com/jeffscottbrown/jerry-lang) language.
+
 ## Installation
 
 ### Homebrew (macOS and Linux)
