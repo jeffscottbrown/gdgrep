@@ -31,9 +31,21 @@ fn grep_lines(
     before_ctx: int,
     after_ctx: int
 ): int {
-    // Split content into lines.  split() returns a pre-typed string[] which
-    // avoids a Jerry codegen limitation with push() on empty arrays.
-    let lines: string[] = split(content, "\n");
+    // Split content into lines.
+    let lines: string[] = [];
+    let clen: int = len(content);
+    let line_start: int = 0;
+    let ci: int = 0;
+    while (ci < clen) {
+        if (char_at(content, ci) == 10) {
+            push(lines, string_slice(content, line_start, ci));
+            line_start = ci + 1;
+        }
+        ci = ci + 1;
+    }
+    if (line_start < clen) {
+        push(lines, string_slice(content, line_start, clen));
+    }
     let n: int = len(lines);
 
     let search_pattern: string = pattern;
