@@ -4,7 +4,7 @@ include @string
 //
 // Parameters:
 //   content      — full file (or stdin) text
-//   pattern      — the search string (already lowercased when ignore_case is true)
+//   pattern      — the search string
 //   label        — filename prefix printed before each match when show_label is true
 //   show_label   — prepend "label:" to each matching line
 //   show_num     — prepend the 1-based line number to each matching line
@@ -13,6 +13,8 @@ include @string
 //   quiet        — suppress all output; only the returned count matters
 //   max_matches  — stop after this many matching lines (0 = unlimited)
 //   color        — highlight the matched portion with ANSI bold-red
+//   before_ctx   — number of lines to print before each match
+//   after_ctx    — number of lines to print after each match
 //
 // Returns the number of matching lines.
 fn grep_lines(
@@ -25,66 +27,143 @@ fn grep_lines(
     invert: bool,
     quiet: bool,
     max_matches: int,
-    color: bool
+    color: bool,
+    before_ctx: int,
+    after_ctx: int
 ): int {
-    let matched: int = 0;
-    let start: int = 0;
-    let total: int = len(content);
-    let linenum: int = 1;
+    // Split content into lines.  split() returns a pre-typed string[] which
+    // avoids a Jerry codegen limitation with push() on empty arrays.
+    let lines: string[] = split(content, "\n");
+    let n: int = len(lines);
 
     let search_pattern: string = pattern;
     if (ignore_case) {
         search_pattern = lower_str(pattern);
     }
 
-    while (start <= total) {
-        // Locate the end of the current line (newline = char code 10).
-        let end: int = start;
-        while (end < total && char_at(content, end) != 10) {
-            end = end + 1;
-        }
+    // ── Phase 1: count matches; record index of the last counted match ────
+    let matched: int = 0;
+    let final_match_idx: int = -1;
+    let limit_hit: bool = false;
+    let i: int = 0;
 
-        let line: string = string_slice(content, start, end);
-
-        let search_line: string = line;
+    while (i < n && !limit_hit) {
+        let sl: string = lines[i];
         if (ignore_case) {
-            search_line = lower_str(line);
+            sl = lower_str(lines[i]);
+        }
+        let line_matches: bool = contains(sl, search_pattern) != invert;
+        if (line_matches) {
+            matched = matched + 1;
+            final_match_idx = i;
+            if (max_matches > 0 && matched >= max_matches) {
+                limit_hit = true;
+            }
+        }
+        i = i + 1;
+    }
+
+    // ── Phase 2: print ────────────────────────────────────────────────────
+    if (!quiet && matched > 0) {
+        let use_context: bool = false;
+        if (before_ctx > 0 || after_ctx > 0) {
+            use_context = true;
         }
 
-        let raw_match: bool = contains(search_line, search_pattern);
-        let line_matches: bool = raw_match != invert;
+        // Don't print past the after-context window of the last match.
+        let print_limit: int = final_match_idx + after_ctx;
+        if (print_limit >= n) {
+            print_limit = n - 1;
+        }
 
-        if (line_matches) {
-            if (!quiet) {
+        let last_match_local: int = -1;
+        let last_printed: int = -1;
+        i = 0;
+
+        while (i <= print_limit) {
+            // Re-check whether this line is a match.
+            let sl: string = lines[i];
+            if (ignore_case) {
+                sl = lower_str(lines[i]);
+            }
+            let is_match_line: bool = contains(sl, search_pattern) != invert;
+
+            // Is this line within the after-context of the most recent match?
+            let in_after_ctx: bool = false;
+            if (last_match_local >= 0 && i <= last_match_local + after_ctx) {
+                in_after_ctx = true;
+            }
+
+            // Is this line within the before-context of an upcoming match?
+            // Only look as far as final_match_idx to respect max_matches.
+            let in_before_ctx: bool = false;
+            if (before_ctx > 0 && !is_match_line) {
+                let look: int = i + 1;
+                while (look <= i + before_ctx && look <= final_match_idx && look < n && !in_before_ctx) {
+                    let lsl: string = lines[look];
+                    if (ignore_case) {
+                        lsl = lower_str(lines[look]);
+                    }
+                    if (contains(lsl, search_pattern) != invert) {
+                        in_before_ctx = true;
+                    }
+                    look = look + 1;
+                }
+            }
+
+            if (is_match_line) {
+                last_match_local = i;
+            }
+
+            let should_print: bool = is_match_line || in_after_ctx || in_before_ctx;
+
+            if (should_print) {
+                // Separator between non-contiguous context groups.
+                if (use_context && last_printed >= 0 && i > last_printed + 1) {
+                    print("--");
+                }
+
+                let line: string = lines[i];
+
+                // Label prefix: ':' for match lines, '-' for context lines.
                 if (show_label) {
-                    write(label + ":");
+                    if (is_match_line || !use_context) {
+                        write(label + ":");
+                    } else {
+                        write(label + "-");
+                    }
                 }
+
+                // Line number prefix: ':' for match lines, '-' for context lines.
                 if (show_num) {
-                    write(int_to_string(linenum) + ":");
+                    if (is_match_line || !use_context) {
+                        write(int_to_string(i + 1) + ":");
+                    } else {
+                        write(int_to_string(i + 1) + "-");
+                    }
                 }
-                if (color && !invert) {
-                    let pos: int = index_of(search_line, search_pattern);
+
+                // Output the line, with optional color highlighting on match lines.
+                if (color && is_match_line && !invert) {
+                    let pos: int = index_of(sl, search_pattern);
                     if (pos >= 0) {
                         let esc: string = char_to_string(27);
-                        let before_text: string = string_slice(line, 0, pos);
-                        let match_text: string = string_slice(line, pos, pos + len(search_pattern));
-                        let after_text: string = string_slice(line, pos + len(search_pattern), len(line));
-                        print(before_text + esc + "[1;31m" + match_text + esc + "[0m" + after_text);
+                        let bt: string = string_slice(line, 0, pos);
+                        let mt: string = string_slice(line, pos, pos + len(search_pattern));
+                        let at: string = string_slice(line, pos + len(search_pattern), len(line));
+                        print(bt + esc + "[1;31m" + mt + esc + "[0m" + at);
                     } else {
                         print(line);
                     }
                 } else {
                     print(line);
                 }
-            }
-            matched = matched + 1;
-            if (max_matches > 0 && matched >= max_matches) {
-                break;
-            }
-        }
 
-        start = end + 1;
-        linenum = linenum + 1;
+                last_printed = i;
+            }
+
+            i = i + 1;
+        }
     }
 
     return matched;
