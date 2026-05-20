@@ -12,6 +12,7 @@ include @string
 //   invert       — print lines that do NOT match (like grep -v)
 //   quiet        — suppress all output; only the returned count matters
 //   max_matches  — stop after this many matching lines (0 = unlimited)
+//   color        — highlight the matched portion with ANSI bold-red
 //
 // Returns the number of matching lines.
 fn grep_lines(
@@ -23,7 +24,8 @@ fn grep_lines(
     ignore_case: bool,
     invert: bool,
     quiet: bool,
-    max_matches: int
+    max_matches: int,
+    color: bool
 ): int {
     let matched: int = 0;
     let start: int = 0;
@@ -60,7 +62,20 @@ fn grep_lines(
                 if (show_num) {
                     write(int_to_string(linenum) + ":");
                 }
-                print(line);
+                if (color && !invert) {
+                    let pos: int = index_of(search_line, search_pattern);
+                    if (pos >= 0) {
+                        let esc: string = char_to_string(27);
+                        let before_text: string = string_slice(line, 0, pos);
+                        let match_text: string = string_slice(line, pos, pos + len(search_pattern));
+                        let after_text: string = string_slice(line, pos + len(search_pattern), len(line));
+                        print(before_text + esc + "[1;31m" + match_text + esc + "[0m" + after_text);
+                    } else {
+                        print(line);
+                    }
+                } else {
+                    print(line);
+                }
             }
             matched = matched + 1;
             if (max_matches > 0 && matched >= max_matches) {
