@@ -10,6 +10,7 @@ include @string
 //   show_num     — prepend the 1-based line number to each matching line
 //   ignore_case  — fold case before comparing
 //   invert       — print lines that do NOT match (like grep -v)
+//   quiet        — suppress all output; only the returned count matters
 //
 // Returns the number of matching lines.
 fn grep_lines(
@@ -19,7 +20,8 @@ fn grep_lines(
     show_label: bool,
     show_num: bool,
     ignore_case: bool,
-    invert: bool
+    invert: bool,
+    quiet: bool
 ): int {
     let matched: int = 0;
     let start: int = 0;
@@ -49,13 +51,15 @@ fn grep_lines(
         let line_matches: bool = raw_match != invert;
 
         if (line_matches) {
-            if (show_label) {
-                write(label + ":");
+            if (!quiet) {
+                if (show_label) {
+                    write(label + ":");
+                }
+                if (show_num) {
+                    write(int_to_string(linenum) + ":");
+                }
+                print(line);
             }
-            if (show_num) {
-                write(int_to_string(linenum) + ":");
-            }
-            print(line);
             matched = matched + 1;
         }
 
