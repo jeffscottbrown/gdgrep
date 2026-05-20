@@ -1,16 +1,29 @@
 // gdgrep — a grep implementation written in Jerry.
 //
-// Usage: gdgrep [-i] [-n] [-q] [-v] [-V] <pattern> [file ...]
+// Usage: gdgrep [-i] [-m N] [-n] [-q] [-v] [-V] <pattern> [file ...]
 //
 // Flags (must appear before the pattern):
-//   -i   case-insensitive matching
-//   -n   prefix each matching line with its 1-based line number
-//   -q   quiet: suppress output, exit 0 if any match found
-//   -v   invert match: print lines that do NOT contain the pattern
-//   -V   print version and exit
+//   -i     case-insensitive matching
+//   -m N   stop after N matching lines
+//   -n     prefix each matching line with its 1-based line number
+//   -q     quiet: suppress output, exit 0 if any match found
+//   -v     invert match: print lines that do NOT contain the pattern
+//   -V     print version and exit
 //
 // With no file arguments gdgrep reads from standard input.
 // Exits with status 1 when no lines match.
+
+// parse_int converts a decimal string to an integer (positive values only).
+fn parse_int(s: string): int {
+    let result: int = 0;
+    let i: int = 0;
+    let n: int = len(s);
+    while (i < n) {
+        result = result * 10 + (char_at(s, i) - 48);
+        i = i + 1;
+    }
+    return result;
+}
 
 fn main() {
     let argv: string[] = args();
@@ -21,6 +34,7 @@ fn main() {
     let ignore_case: bool = false;
     let invert: bool = false;
     let quiet: bool = false;
+    let max_matches: int = 0;
     let argpos: int = 0;
 
     while (argpos < argc) {
@@ -31,6 +45,12 @@ fn main() {
         } else if (arg == "-i") {
             ignore_case = true;
             argpos = argpos + 1;
+        } else if (arg == "-m") {
+            argpos = argpos + 1;
+            if (argpos < argc) {
+                max_matches = parse_int(argv[argpos]);
+                argpos = argpos + 1;
+            }
         } else if (arg == "-q") {
             quiet = true;
             argpos = argpos + 1;
@@ -46,7 +66,7 @@ fn main() {
     }
 
     if (argpos >= argc) {
-        print_err("usage: gdgrep [-i] [-n] [-q] [-v] [-V] <pattern> [file ...]");
+        print_err("usage: gdgrep [-i] [-m N] [-n] [-q] [-v] [-V] <pattern> [file ...]");
         exit(1);
     }
 
@@ -58,7 +78,7 @@ fn main() {
     if (file_start >= argc) {
         // No files given — read stdin.
         let content: string = read_stdin();
-        matched = grep_lines(content, pattern, "(stdin)", false, show_num, ignore_case, invert, quiet);
+        matched = grep_lines(content, pattern, "(stdin)", false, show_num, ignore_case, invert, quiet, max_matches);
     } else {
         // One or more files.  Show the filename prefix only when there are
         // multiple files (mirrors standard grep behaviour).
@@ -67,7 +87,7 @@ fn main() {
         while (i < argc) {
             let path: string = argv[i];
             let content: string = read_file(path);
-            matched = matched + grep_lines(content, pattern, path, show_label, show_num, ignore_case, invert, quiet);
+            matched = matched + grep_lines(content, pattern, path, show_label, show_num, ignore_case, invert, quiet, max_matches);
             i = i + 1;
         }
     }

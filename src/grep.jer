@@ -11,6 +11,7 @@ include @string
 //   ignore_case  — fold case before comparing
 //   invert       — print lines that do NOT match (like grep -v)
 //   quiet        — suppress all output; only the returned count matters
+//   max_matches  — stop after this many matching lines (0 = unlimited)
 //
 // Returns the number of matching lines.
 fn grep_lines(
@@ -21,7 +22,8 @@ fn grep_lines(
     show_num: bool,
     ignore_case: bool,
     invert: bool,
-    quiet: bool
+    quiet: bool,
+    max_matches: int
 ): int {
     let matched: int = 0;
     let start: int = 0;
@@ -61,6 +63,9 @@ fn grep_lines(
                 print(line);
             }
             matched = matched + 1;
+            if (max_matches > 0 && matched >= max_matches) {
+                break;
+            }
         }
 
         start = end + 1;
