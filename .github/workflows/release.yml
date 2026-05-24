@@ -47,6 +47,16 @@ jobs:
         with:
           version: v0.8.6
 
+      - name: Get x86_64 runtime library (cross-compile only)
+        if: matrix.jerry_target == 'x86_64-apple-darwin'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release download "${JERRY_VERSION}" --repo jeffscottbrown/jerry-lang \
+            --pattern jerry-macos-x86_64.tar.gz
+          tar xf jerry-macos-x86_64.tar.gz jerry_runtime.a
+          echo "JERRY_RUNTIME=${{ github.workspace }}/jerry_runtime.a" >> "$GITHUB_ENV"
+
       - name: Build
         run: |
           printf 'let VERSION: string = "%s";\n' "${{ github.ref_name }}" > src/version.jer
