@@ -52,7 +52,7 @@ jobs:
           printf 'let VERSION: string = "%s";\n' "${{ github.ref_name }}" > src/version.jer
           TARGET_FLAG=""
           if [ -n "${{ matrix.jerry_target }}" ]; then
-            TARGET_FLAG="--target ${{ matrix.jerry_target }}"
+            TARGET_FLAG="-target ${{ matrix.jerry_target }}"
           fi
           jerry compile src/version.jer src/grep.jer src/main.jer -o ${{ matrix.asset_name }} $TARGET_FLAG
 
