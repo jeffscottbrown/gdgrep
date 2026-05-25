@@ -28,9 +28,9 @@ jobs:
           sudo apt-get install -y clang
 
       - name: Setup Jerry
-        uses: jeffscottbrown/jerry-lang/.github/actions/setup-jerry@v0.8.6
+        uses: jeffscottbrown/jerry-lang/.github/actions/setup-jerry@v0.8.7
         with:
-          version: v0.8.6
+          version: v0.8.7
 
       - name: Jerry version
         run: jerry --version
